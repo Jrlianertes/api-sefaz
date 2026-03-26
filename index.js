@@ -4,6 +4,12 @@ const puppeteer = require('puppeteer');
 const app = express();
 app.use(express.json());
 
+// ROTA PRINCIPAL (teste)
+app.get('/', (req, res) => {
+  res.json({ status: 'API rodando 🚀' });
+});
+
+// ROTA DE CONSULTA
 app.post('/consulta', async (req, res) => {
   const { url } = req.body;
 
@@ -15,7 +21,6 @@ app.post('/consulta', async (req, res) => {
     const page = await browser.newPage();
     await page.goto(url, { waitUntil: 'networkidle2' });
 
-    // 👇 exemplo simples (depois ajustamos pro SEFAZ)
     const titulo = await page.title();
 
     await browser.close();
@@ -33,9 +38,7 @@ app.post('/consulta', async (req, res) => {
   }
 });
 
-app.get('/', (req, res) => {
-  res.send('API rodando 🚀');
-});
-
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Rodando na porta ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Rodando na porta ${PORT}`);
+});
