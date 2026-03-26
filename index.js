@@ -4,12 +4,12 @@ const puppeteer = require('puppeteer');
 const app = express();
 app.use(express.json());
 
-// ROTA PRINCIPAL (teste)
+// ✅ ROTA PRINCIPAL (teste)
 app.get('/', (req, res) => {
   res.json({ status: 'API rodando 🚀' });
 });
 
-// ROTA DE CONSULTA
+// ✅ ROTA DE CONSULTA
 app.post('/consulta', async (req, res) => {
   const { url } = req.body;
 
@@ -36,6 +36,14 @@ app.post('/consulta', async (req, res) => {
       error: error.message
     });
   }
+});
+
+// ⚠️ fallback (resolve qualquer erro de rota)
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Rota não encontrada',
+    rota: req.url
+  });
 });
 
 const PORT = process.env.PORT || 3000;
