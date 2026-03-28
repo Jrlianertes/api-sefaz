@@ -99,7 +99,7 @@ app.get('/teste-push', async (req, res) => {
 app.get('/send-push-all', async (req, res) => {
   try {
     const { data: usuarios, error } = await supabase
-      .from('users')
+      .from('Usuario')
       .select('fcm_token')
       .not('fcm_token', 'is', null);
 
@@ -158,7 +158,7 @@ app.get('/send-dynamic', async (req, res) => {
     }
 
     const { data: usuarios, error: erroUsers } = await supabase
-      .from('users')
+      .from('Usuario')
       .select('fcm_token')
       .not('fcm_token', 'is', null);
 
