@@ -6,6 +6,16 @@ const fetch = require('node-fetch');
 const app = express();
 app.use(express.json());
 
+// 🔥 ROTA TESTE
+app.get('/teste-push', (req, res) => {
+  res.send('Teste funcionando 🚀');
+});
+
+// 🔥 ROTA TODOS
+app.get('/send-push-all', (req, res) => {
+  res.send('Envio para todos 🚀');
+});
+
 const PORT = process.env.PORT || 3000;
 
 // 🔑 SUPABASE
