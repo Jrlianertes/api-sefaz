@@ -1,16 +1,26 @@
-app.get('/teste-push', async (req, res) => {
-  try {
-    const token = req.query.token;
+const express = require('express');
+const { GoogleAuth } = require('google-auth-library');
+const { createClient } = require('@supabase/supabase-js');
+const fetch = require('node-fetch');
 
-    if (!token) {
-      return res.send("Passe o token na URL");
-    }
+const app = express(); // 👈 TEM QUE VIR ANTES
+app.use(express.json());
 
-    await sendPushFCM(token, "Teste 🚀", "Funcionou!");
+// ROTAS AQUI 👇
+app.get('/teste-push', (req, res) => {
+  res.send("Teste funcionando 🚀");
+});
 
-    res.send("Push enviado!");
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("Erro ao enviar push");
-  }
+app.get('/send-push-all', (req, res) => {
+  res.send("Envio para todos 🚀");
+});
+
+app.get('/', (req, res) => {
+  res.send("API rodando 🚀");
+});
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`Rodando na porta ${PORT}`);
 });
