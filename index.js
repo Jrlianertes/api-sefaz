@@ -142,7 +142,7 @@ app.get('/send-dynamic', async (req, res) => {
     const { data: mensagens, error: erroMsg } = await supabase
       .from('push_messages')
       .select('*')
-      .eq('ativo', TRUE)
+      .eq('ativo', true)
       .order('created_at', { ascending: false })
       .limit(1);
 
