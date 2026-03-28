@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3000;
 
 // 🔑 SUPABASE
 const supabase = createClient(
-  'https://bkwudpiemnzisfcigeku.supabase.co',
+  'https://bkwudpiemnzisfciqeku.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrd3VkcGllbW56aXNmY2lxZWt1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MDM3MzYsImV4cCI6MjA1NTk3OTczNn0.EqHiKxVv3IRR76jsNC1ozuwuT3bj1kxWjuePLNgKE14'
 );
 
