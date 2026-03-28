@@ -1,10 +1,16 @@
-const express = require('express');
-const app = express();
+app.get('/teste-push', async (req, res) => {
+  try {
+    const token = req.query.token;
 
-app.get('/', (req, res) => {
-  res.send('FUNCIONANDO 🚀');
-});
+    if (!token) {
+      return res.send("Passe o token na URL");
+    }
 
-app.listen(process.env.PORT || 3000, () => {
-  console.log('Servidor iniciado');
+    await sendPushFCM(token, "Teste 🚀", "Funcionou!");
+
+    res.send("Push enviado!");
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Erro ao enviar push");
+  }
 });
