@@ -4,7 +4,6 @@ const { createClient } = require('@supabase/supabase-js');
 
 const fetch = global.fetch;
 
-// 👇 APP PRIMEIRO (IMPORTANTE)
 const app = express();
 app.use(express.json());
 
@@ -13,7 +12,7 @@ const PORT = process.env.PORT || 3000;
 // 🔑 SUPABASE
 const supabase = createClient(
   'https://bkwudpiemnzisfciqeku.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrd3VkcGllbW56aXNmY2lxZWt1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MDM3MzYsImV4cCI6MjA1NTk3OTczNn0.EqHiKxVv3IRR76jsNC1ozuwuT3bj1kxWjuePLNgKE14'
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrd3VkcGllbW56aXNmY2lxZWt1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MDM3MzYsImV4cCI6MjA1NTk3OTczNn0.EqHiKxVv3IRR76jsNC1ozuwuT3bj1kxWjuePLNgKE14' // (ideal depois trocar por service_role)
 );
 
 // 🔐 FIREBASE
@@ -29,7 +28,7 @@ async function getAccessToken() {
   return token.token;
 }
 
-// 🚀 ENVIO PUSH
+// 🚀 ENVIO PUSH (ATUALIZADO COM iOS)
 async function sendPushFCM(tokenUsuario, titulo, mensagem, tipo, imagem) {
   try {
     const accessToken = await getAccessToken();
@@ -45,19 +44,32 @@ async function sendPushFCM(tokenUsuario, titulo, mensagem, tipo, imagem) {
         body: JSON.stringify({
           message: {
             token: tokenUsuario,
+
             notification: {
               title: titulo,
               body: mensagem,
               ...(imagem && { image: imagem })
             },
+
             data: {
               click_action: "FLUTTER_NOTIFICATION_CLICK",
               tipo: tipo || "default"
             },
+
             android: {
               priority: "high",
               notification: {
                 sound: "default"
+              }
+            },
+
+            // 🔥 iOS CONFIGURADO
+            apns: {
+              payload: {
+                aps: {
+                  sound: "default",
+                  badge: 1
+                }
               }
             }
           }
@@ -95,7 +107,7 @@ app.get('/teste-push', async (req, res) => {
   }
 });
 
-// 🔥 ENVIO PARA TODOS
+// 🔥 ENVIO PARA TODOS (MELHORADO COM PROMISE.ALL)
 app.get('/send-push-all', async (req, res) => {
   try {
     const { data: usuarios, error } = await supabase
@@ -112,21 +124,19 @@ app.get('/send-push-all', async (req, res) => {
       return res.send("Nenhum usuário com token");
     }
 
-    for (const user of usuarios) {
-      try {
-        if (!user.fcm_token) continue;
+    await Promise.all(
+      usuarios.map(user => {
+        if (!user.fcm_token) return;
 
-        await sendPushFCM(
+        return sendPushFCM(
           user.fcm_token,
           "Lembrete 🚀",
           "Não esqueça seu cupom!",
           "home",
           null
         );
-      } catch (err) {
-        console.log("Erro no token:", user.fcm_token);
-      }
-    }
+      })
+    );
 
     res.send("Push enviado para todos 🚀");
 
@@ -136,7 +146,7 @@ app.get('/send-push-all', async (req, res) => {
   }
 });
 
-// 🔥 ENVIO DINÂMICO (push_messages)
+// 🔥 ENVIO DINÂMICO
 app.get('/send-dynamic', async (req, res) => {
   try {
     const { data: mensagens, error: erroMsg } = await supabase
@@ -147,7 +157,7 @@ app.get('/send-dynamic', async (req, res) => {
       .limit(1);
 
     if (erroMsg) {
-      console.log(erroMsg);
+      console.log("❌ ERRO MENSAGEM:", erroMsg);
       return res.send("Erro ao buscar mensagem");
     }
 
@@ -163,7 +173,7 @@ app.get('/send-dynamic', async (req, res) => {
       .not('fcm_token', 'is', null);
 
     if (erroUsers) {
-      console.log(erroUsers);
+      console.log("❌ ERRO USERS:", erroUsers);
       return res.send("Erro ao buscar usuários");
     }
 
@@ -173,27 +183,19 @@ app.get('/send-dynamic', async (req, res) => {
 
     console.log(`🚀 Enviando para ${usuarios.length} usuários`);
 
-    for (const user of usuarios) {
-      try {
-        if (!user.fcm_token) continue;
+    await Promise.all(
+      usuarios.map(user => {
+        if (!user.fcm_token) return;
 
-        await sendPushFCM(
+        return sendPushFCM(
           user.fcm_token,
           mensagem.titulo,
           mensagem.mensagem,
           mensagem.tipo,
           mensagem.imagem_url
         );
-      } catch (err) {
-        console.log("Erro no token:", user.fcm_token);
-      }
-    }
-
-    // opcional: desativar mensagem
-    await supabase
-      .from('push_messages')
-      .update({ ativo: false })
-      .eq('id', mensagem.id);
+      })
+    );
 
     res.send("Push dinâmico enviado 🚀");
 
@@ -208,7 +210,6 @@ app.get('/', (req, res) => {
   res.send("API rodando 🚀");
 });
 
-// START
 app.listen(PORT, () => {
   console.log(`Rodando na porta ${PORT}`);
 });
