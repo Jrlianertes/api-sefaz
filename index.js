@@ -9,26 +9,44 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
+// =============================
 // 🔑 SUPABASE
+// =============================
 const supabase = createClient(
   'https://bkwudpiemnzisfcigeku.supabase.co',
-  process.env.eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrd3VkcGllbW56aXNmY2lxZWt1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MDM3MzYsImV4cCI6MjA1NTk3OTczNn0.EqHiKxVv3IRR76jsNC1ozuwuT3bj1kxWjuePLNgKE14
+  process.env.SUPABASE_ANON_KEY
 );
 
-// 🔐 FIREBASE
+// =============================
+// 🔐 FIREBASE (BLINDADO)
+// =============================
+let serviceAccount;
+
+try {
+  serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
+  console.log("✅ Usando credencial do Render");
+} catch (err) {
+  console.log("⚠️ Falha na variável do Render, usando arquivo local");
+  serviceAccount = require('./service-account.json');
+}
+
 const auth = new GoogleAuth({
-  credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT),
+  credentials: serviceAccount,
   scopes: ['https://www.googleapis.com/auth/firebase.messaging']
 });
 
+// =============================
 // 🔄 TOKEN FIREBASE
+// =============================
 async function getAccessToken() {
   const client = await auth.getClient();
   const token = await client.getAccessToken();
   return token.token;
 }
 
-// 🚀 ENVIO PUSH (FCM V1)
+// =============================
+// 🚀 ENVIO PUSH
+// =============================
 async function sendPushFCM(tokenUsuario, titulo, mensagem, tipo, imagem) {
   try {
     const accessToken = await getAccessToken();
@@ -74,7 +92,7 @@ async function sendPushFCM(tokenUsuario, titulo, mensagem, tipo, imagem) {
     console.log("✅ ENVIADO:", data);
 
   } catch (error) {
-    console.error("🔥 ERRO NO PUSH:", error.message);
+    console.error("🔥 ERRO PUSH:", error.message);
   }
 }
 
@@ -85,7 +103,7 @@ app.get('/teste-push', async (req, res) => {
   try {
     const token = req.query.token;
 
-    if (!token) return res.send("Passe o token na URL");
+    if (!token) return res.send("Informe o token");
 
     await sendPushFCM(token, "Teste 🚀", "Funcionou!", "home", null);
 
@@ -102,7 +120,7 @@ app.get('/teste-push', async (req, res) => {
 app.get('/send-push-all', async (req, res) => {
   try {
     const { data: usuarios, error } = await supabase
-      .from('Usuario') // ✅ corrigido aqui
+      .from('Usuario')
       .select('fcm_token')
       .not('fcm_token', 'is', null);
 
@@ -127,7 +145,7 @@ app.get('/send-push-all', async (req, res) => {
 });
 
 // =============================
-// 🔥 PUSH DINÂMICO (VIEW)
+// 🔥 PUSH DINÂMICO
 // =============================
 app.get('/send-dynamic', async (req, res) => {
   try {
@@ -144,11 +162,9 @@ app.get('/send-dynamic', async (req, res) => {
     }
 
     const { data: usuarios } = await supabase
-      .from('Usuario') // ✅ corrigido aqui também
+      .from('Usuario')
       .select('fcm_token')
       .not('fcm_token', 'is', null);
-
-    console.log(`🚀 Enviando para ${usuarios.length} usuários`);
 
     for (const user of usuarios) {
       await sendPushFCM(
@@ -159,12 +175,6 @@ app.get('/send-dynamic', async (req, res) => {
         mensagem.imagem_url
       );
     }
-
-    // 👉 MANTIVE COMO OPCIONAL (igual você comentou)
-    // await supabase
-    //   .from('push_messages')
-    //   .update({ ativo: false })
-    //   .eq('id', mensagem.id);
 
     res.send("Push dinâmico enviado 🚀");
 
@@ -185,5 +195,5 @@ app.get('/', (req, res) => {
 // 🚀 START
 // =============================
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Rodando na porta ${PORT}`);
+  console.log(`Servidor rodando na porta ${PORT}`);
 });
