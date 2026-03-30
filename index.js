@@ -1,215 +1,98 @@
 const express = require('express');
-const { GoogleAuth } = require('google-auth-library');
-const { createClient } = require('@supabase/supabase-js');
-
-const fetch = global.fetch;
+const puppeteer = require('puppeteer');
 
 const app = express();
 app.use(express.json());
 
-const PORT = process.env.PORT || 3000;
-
-// 🔑 SUPABASE
-const supabase = createClient(
-  'https://bkwudpiemnzisfciqeku.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrd3VkcGllbW56aXNmY2lxZWt1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MDM3MzYsImV4cCI6MjA1NTk3OTczNn0.EqHiKxVv3IRR76jsNC1ozuwuT3bj1kxWjuePLNgKE14' // (ideal depois trocar por service_role)
-);
-
-// 🔐 FIREBASE
-const auth = new GoogleAuth({
-  credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT),
-  scopes: ['https://www.googleapis.com/auth/firebase.messaging']
+// ✅ ROTA PRINCIPAL (teste)
+app.get('/', (req, res) => {
+  res.json({ status: 'API rodando 🚀' });
 });
 
-// 🔄 TOKEN FIREBASE
-async function getAccessToken() {
-  const client = await auth.getClient();
-  const token = await client.getAccessToken();
-  return token.token;
-}
+// ✅ ROTA DE CONSULTA
+app.post('/consulta', async (req, res) => {
+  const { url } = req.body;
 
-// 🚀 ENVIO PUSH (ATUALIZADO COM iOS)
-async function sendPushFCM(tokenUsuario, titulo, mensagem, tipo, imagem) {
   try {
-    const accessToken = await getAccessToken();
+    const browser = await puppeteer.launch({
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+
+    const page = await browser.newPage();
+    await page.goto(url, { waitUntil: 'networkidle2' });
+
+    const titulo = await page.title();
+
+    await browser.close();
+
+    res.json({
+      success: true,
+      titulo
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// ⚠️ fallback (resolve qualquer erro de rota)
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Rota não encontrada',
+    rota: req.url
+  });
+});
+
+app.post('/harmonizar', async (req, res) => {
+  try {
+    const { user_id, prato } = req.body;
+
+    if (!user_id || !prato) {
+      return res.status(400).send("Dados incompletos");
+    }
+
+    const { data } = await supabase
+      .from('lista_adega00')
+      .select('produto')
+      .eq('usuario', user_id);
+
+    const vinhos = data.map(v => v.produto).join(', ');
 
     const response = await fetch(
-      'https://fcm.googleapis.com/v1/projects/controle-solidario-fsk4h0/messages:send',
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyBouXzyBbDMHx6Yk420ZBsDFwa7zZNnOx4',
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: {
-            token: tokenUsuario,
-
-            notification: {
-              title: titulo,
-              body: mensagem,
-              ...(imagem && { image: imagem })
-            },
-
-            data: {
-              click_action: "FLUTTER_NOTIFICATION_CLICK",
-              tipo: tipo || "default"
-            },
-
-            android: {
-              priority: "high",
-              notification: {
-                sound: "default"
-              }
-            },
-
-            // 🔥 iOS CONFIGURADO
-            apns: {
-              payload: {
-                aps: {
-                  sound: "default",
-                  badge: 1
+          contents: [
+            {
+              parts: [
+                {
+                  text: `Qual vinho harmoniza melhor com ${prato} considerando estes vinhos: ${vinhos}?`
                 }
-              }
+              ]
             }
-          }
+          ]
         })
       }
     );
 
-    const data = await response.json();
+    const json = await response.json();
+    const texto = json?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    if (!response.ok) {
-      console.log("❌ ERRO FCM:", data);
-      throw new Error(JSON.stringify(data));
-    }
+    res.send({ resposta: texto });
 
-    console.log("✅ ENVIADO:", data);
-
-  } catch (error) {
-    console.error("🔥 ERRO NO PUSH:", error.message);
-  }
-}
-
-// 🔥 TESTE INDIVIDUAL
-app.get('/teste-push', async (req, res) => {
-  try {
-    const token = req.query.token;
-
-    if (!token) return res.send("Passe o token na URL");
-
-    await sendPushFCM(token, "Teste 🚀", "Funcionou!", "home", null);
-
-    res.send("Push enviado!");
   } catch (err) {
     console.error(err);
     res.status(500).send("Erro");
   }
 });
 
-// 🔥 ENVIO PARA TODOS (MELHORADO COM PROMISE.ALL)
-app.get('/send-push-all', async (req, res) => {
-  try {
-    const { data: usuarios, error } = await supabase
-      .from('Usuario')
-      .select('fcm_token')
-      .not('fcm_token', 'is', null);
 
-    if (error) {
-      console.log(error);
-      return res.send("Erro ao buscar usuários");
-    }
-
-    if (!usuarios || usuarios.length === 0) {
-      return res.send("Nenhum usuário com token");
-    }
-
-    await Promise.all(
-      usuarios.map(user => {
-        if (!user.fcm_token) return;
-
-        return sendPushFCM(
-          user.fcm_token,
-          "Lembrete 🚀",
-          "Não esqueça seu cupom!",
-          "home",
-          null
-        );
-      })
-    );
-
-    res.send("Push enviado para todos 🚀");
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Erro ao enviar");
-  }
-});
-
-// 🔥 ENVIO DINÂMICO
-app.get('/send-dynamic', async (req, res) => {
-  try {
-    const { data: mensagens, error: erroMsg } = await supabase
-      .from('push_messages')
-      .select('*')
-      .eq('ativo', true)
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    if (erroMsg) {
-      console.log("❌ ERRO MENSAGEM:", erroMsg);
-      return res.send("Erro ao buscar mensagem");
-    }
-
-    const mensagem = mensagens?.[0];
-
-    if (!mensagem) {
-      return res.send("Nenhuma mensagem ativa");
-    }
-
-    const { data: usuarios, error: erroUsers } = await supabase
-      .from('Usuario')
-      .select('fcm_token')
-      .not('fcm_token', 'is', null);
-
-    if (erroUsers) {
-      console.log("❌ ERRO USERS:", erroUsers);
-      return res.send("Erro ao buscar usuários");
-    }
-
-    if (!usuarios || usuarios.length === 0) {
-      return res.send("Nenhum usuário com token");
-    }
-
-    console.log(`🚀 Enviando para ${usuarios.length} usuários`);
-
-    await Promise.all(
-      usuarios.map(user => {
-        if (!user.fcm_token) return;
-
-        return sendPushFCM(
-          user.fcm_token,
-          mensagem.titulo,
-          mensagem.mensagem,
-          mensagem.tipo,
-          mensagem.imagem_url
-        );
-      })
-    );
-
-    res.send("Push dinâmico enviado 🚀");
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Erro ao enviar push");
-  }
-});
-
-// rota base
-app.get('/', (req, res) => {
-  res.send("API rodando 🚀");
-});
-
-app.listen(PORT, () => {
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Rodando na porta ${PORT}`);
 });
