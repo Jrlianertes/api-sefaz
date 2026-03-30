@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 // 🔑 SUPABASE
 // =============================
 const supabase = createClient(
-  'https://bkwudpiemnzisfcigeku.supabase.co',
+  'https://bkwudpiemnzisfciqeku.supabase.co',
   process.env.SUPABASE_ANON_KEY
 );
 
