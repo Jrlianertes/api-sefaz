@@ -18,12 +18,16 @@ const supabase = createClient(
 );
 
 // =============================
-// 🔐 FIREBASE (BLINDADO)
+// 🔐 FIREBASE (CORRIGIDO)
 // =============================
 let serviceAccount;
 
 try {
   serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
+
+  // 🔥 CORREÇÃO DO ERRO JWT
+  serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+
   console.log("✅ Usando credencial do Render");
 } catch (err) {
   console.log("⚠️ Falha na variável do Render, usando arquivo local");
